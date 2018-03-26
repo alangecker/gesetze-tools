@@ -94,7 +94,7 @@ class Lawde(object):
                     self.store(law, zipfile)
                 queue.task_done()
 
-        for i, law in enumerate(laws[0:20]):
+        for i, law in enumerate(laws):
             queue.put((law,i))
 
         for x in range(10):
