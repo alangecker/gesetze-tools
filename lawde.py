@@ -31,7 +31,8 @@ from docopt import docopt
 import requests
 import zipfile
 from xml.dom.minidom import parseString
-
+from Queue import Queue
+from threading import Thread
 
 class Lawde(object):
     BASE_URL = 'http://www.gesetze-im-internet.de'
@@ -54,7 +55,7 @@ class Lawde(object):
         while True:
             try:
                 res = requests.get(self.build_zip_url(law))
-                file('test.zip', 'w').write(res.content)
+                # file('test.zip', 'w').write(res.content)
             except Exception as e:
                 tries += 1
                 print e
@@ -74,19 +75,37 @@ class Lawde(object):
         return zipf
 
     def load(self, laws):
+        queue = Queue()
         total = float(len(laws))
         ts1 = datetime.datetime.now()
         print "Laws to download: %d" % len(laws)
-        for i, law in enumerate(laws):
-            if i == 9:
-                ts2 = datetime.datetime.now()
-                ts_diff = ts2 - ts1
-                print "Estimated download time: %d minutes" % ((ts_diff.seconds * len(laws)/10) / 60)
-            if i % 10 == 0:
-                print '%.1f%%' % (i / total * 100)
-            zipfile = self.download_law(law)
-            if zipfile is not None:
-                self.store(law, zipfile)
+
+        def workerThread():
+            while not queue.empty():
+                law,i = queue.get()
+                if i == 39:
+                    ts2 = datetime.datetime.now()
+                    ts_diff = ts2 - ts1
+                    print "Estimated download time: %d minutes" % ((ts_diff.seconds * len(laws)/39) / 60)
+                if i % 10 == 0:
+                    print '%.1f%%' % (i / total * 100)
+                zipfile = self.download_law(law)
+                if zipfile is not None:
+                    self.store(law, zipfile)
+                queue.task_done()
+
+        for i, law in enumerate(laws[0:20]):
+            queue.put((law,i))
+
+        for x in range(10):
+            worker = Thread(target=workerThread)
+            worker.daemon = True
+            worker.start()
+
+
+        while not queue.empty():
+            time.sleep(5)
+
 
     def build_law_path(self, law):
         prefix = law[0]
