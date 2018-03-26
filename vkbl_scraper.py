@@ -22,10 +22,6 @@ import requests
 import lxml.html
 
 
-def get_url(url):
-    response = requests.get(url)
-    response.encoding = 'latin1'
-    return response.text
 
 
 def ctext(el):
@@ -50,7 +46,7 @@ def slugify(key):
 
 
 class VkblScraper(object):
-    URL = 'http://www.verkehr-data.com/docs/artikelsuche.php?seitenzahl=1&anzahl=10000&start=0&Titel=&Datum=&Muster=&Muster2=&Jahrgang=%d&VerordnungsNr=&Seite=&Bereichsname=&DB=&Aktenzeichen='
+    URL = 'http://www.verkehr-data.com/docs/artikelsuche.php'
     PRICE_RE = re.compile('Preis: (\d+,\d+) \((\d+) Seite')
 
     def scrape(self, low=1947, high=datetime.datetime.now().year):
@@ -60,7 +56,13 @@ class VkblScraper(object):
             tries = 0
             while True:
                 try:
-                    response = get_url(self.URL % year)
+                    response = requests.post(self.URL, data={
+                        'seitenzahl':1,
+                        'anzahl': 10000,
+                        'start': 0,
+                        'Jahrgang': year
+                    })  
+                    response.encoding = 'latin1'
                 except Exception:
                     tries += 1
                     if tries > 10:
@@ -69,7 +71,7 @@ class VkblScraper(object):
                     continue
                 else:
                     break
-            root = lxml.html.fromstring(response)
+            root = lxml.html.fromstring(response.text)
             total_sum += len(root.cssselect(".tabelle2"))
             print year, len(root.cssselect(".tabelle2"))
             for i, table in enumerate(root.cssselect(".tabelle2")):
